@@ -67,16 +67,45 @@ async function tmdbFetch(pathname, searchParams = {}, { retries = 3 } = {}) {
       );
     } catch (err) {
       clearTimeout(timeout);
+
       if (err.name === 'AbortError') {
         if (attempt < retries) {
           attempt += 1;
           await sleep(300 * 2 ** attempt);
           continue;
         }
-        throw new UpstreamError('The movie database took too long to respond.', 504);
+
+        throw new UpstreamError(
+          'The movie database took too long to respond.',
+          504
+        );
       }
-      if (err instanceof UpstreamError) throw err;
-      throw new UpstreamError('Could not reach the movie database.', 502);
+
+      if (err instanceof UpstreamError) {
+        throw err;
+      }
+
+      // Retry temporary network errors such as ECONNRESET.
+      if (attempt < retries) {
+        const backoffMs = 300 * 2 ** attempt;
+        attempt += 1;
+
+        console.warn(
+          `[TMDB retry] ${err.cause?.code || err.code || err.message}; ` +
+          `attempt ${attempt}/${retries}`
+        );
+
+        await sleep(backoffMs);
+        continue;
+      }
+
+      console.error('[TMDB original error]', err);
+      console.error('[TMDB error cause]', err.cause);
+
+      throw new UpstreamError(
+        'Could not reach the movie database.',
+        502
+      );
     }
   }
 }
