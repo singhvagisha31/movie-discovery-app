@@ -7,7 +7,7 @@ import { wishlistRouter } from './routes/wishlist.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
 const app = express();
-
+app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json());
 
